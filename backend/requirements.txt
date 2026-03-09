@@ -1,10 +1,13 @@
-# RunPod serverless SDK
-runpod==1.6.2
+# NOTE: runpod==1.6.2 is installed --no-deps in Dockerfile (fastapi[all] conflicts with supabase httpx)
+# Minimal runpod runtime deps for serverless handler:
+aiohttp>=3.9.0
+backoff>=2.2.1
+colorama>=0.2.5
 
 # Supabase Python client (uploads output files, updates room status)
 supabase==2.3.0
 
-# HTTP client (let supabase pin the httpx version)
+# HTTP client
 requests
 
 # Image processing
