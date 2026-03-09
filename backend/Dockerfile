@@ -9,7 +9,7 @@
 # Push:  docker push larrywalker/immostage-3d-worker:latest
 # =============================================================================
 
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+FROM nvidia/cuda:12.4.0-devel-ubuntu22.04
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -41,8 +41,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ---------------------------------------------------------------------------
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
-    torch==2.6.0 torchvision==0.21.0 \
-    --index-url https://download.pytorch.org/whl/cu121
+    torch==2.5.1 torchvision==0.20.1 \
+    --index-url https://download.pytorch.org/whl/cu124
 
 # ---------------------------------------------------------------------------
 # Python: nerfstudio (3DGS support)
