@@ -1,0 +1,1935 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>ImmoStage 3D – Aufnahme</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #6366f1;
+      --accent-hover: #4f52d6;
+      --accent-dim: rgba(99,102,241,0.15);
+      --text: #f0f0f0;
+      --muted: #888;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --radius: 12px;
+      --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow: hidden;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 428px;
+      height: 100%;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── SCREEN SYSTEM ── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform var(--transition);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .screen.active {
+      transform: translateX(0);
+    }
+    .screen.exit-left {
+      transform: translateX(-30%);
+    }
+
+    /* ── COMMON LAYOUT ── */
+    .screen-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 56px 20px 20px;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .screen-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      flex: 1;
+    }
+    .btn-back {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+    .screen-body {
+      flex: 1;
+      padding: 0 20px 40px;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      font-family: var(--font);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.45; pointer-events: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-danger { background: var(--danger); color: #fff; }
+
+    /* ── FORM ELEMENTS ── */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .form-select {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: var(--font);
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+    .form-error { color: var(--danger); font-size: 13px; margin-top: 8px; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    /* ── LOGO ── */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 20px;
+    }
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    /* ─────────────────────────────────────────
+       SCREEN 1: LOGIN
+    ───────────────────────────────────────── */
+    #screen-login {
+      background: var(--bg);
+      justify-content: center;
+      padding: 40px 24px;
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .login-logo .logo { justify-content: center; }
+    .login-logo p { color: var(--muted); font-size: 14px; margin-top: 8px; }
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+    }
+    .login-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 24px; }
+
+    /* ─────────────────────────────────────────
+       SCREEN 2: DASHBOARD LINK
+    ───────────────────────────────────────── */
+    #screen-home .screen-body {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 20px;
+    }
+    .home-greeting {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .home-action-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .home-action-card:hover { border-color: var(--accent); }
+    .action-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .action-icon.indigo { background: var(--accent-dim); }
+    .action-icon.green { background: rgba(34,197,94,0.15); }
+    .action-text h3 { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+    .action-text p { font-size: 13px; color: var(--muted); }
+    .btn-logout {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 8px 0;
+      font-family: var(--font);
+    }
+
+    /* ─────────────────────────────────────────
+       SCREEN 3: TOUR SETUP
+    ───────────────────────────────────────── */
+    #screen-setup .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: var(--font);
+    }
+    .tab-btn.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ─────────────────────────────────────────
+       SCREEN 4: PERMISSIONS
+    ───────────────────────────────────────── */
+    #screen-permissions {
+      justify-content: center;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .perm-icon { font-size: 64px; margin-bottom: 24px; }
+    #screen-permissions h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    #screen-permissions p { color: var(--muted); font-size: 15px; line-height: 1.6; margin-bottom: 32px; }
+    .perm-list {
+      text-align: left;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 32px;
+    }
+    .perm-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .perm-item:last-child { border-bottom: none; }
+    .perm-item-icon { font-size: 20px; }
+
+    /* ─────────────────────────────────────────
+       SCREEN 5: CAPTURE
+    ───────────────────────────────────────── */
+    #screen-capture {
+      background: #000;
+      overflow: hidden;
+    }
+    #capture-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #capture-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .capture-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 56px 20px 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    }
+    .capture-counter {
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      backdrop-filter: blur(8px);
+    }
+    #capture-guide-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .capture-bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0; right: 0;
+      padding: 20px 20px 48px;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+    .capture-shutter {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 3px solid rgba(255,255,255,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .capture-shutter:active { transform: scale(0.92); }
+    .capture-shutter-inner {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #fff;
+    }
+    .capture-shutter.auto .capture-shutter-inner { background: var(--accent); }
+    .capture-hint {
+      position: absolute;
+      bottom: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+
+    /* ─────────────────────────────────────────
+       SCREEN 6: REVIEW
+    ───────────────────────────────────────── */
+    #screen-review .screen-body { padding-top: 16px; }
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .photo-thumb {
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: var(--card);
+      width: 100%;
+    }
+    .section-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .mode-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .mode-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 12px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      text-align: center;
+    }
+    .mode-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+    .mode-card-emoji { font-size: 24px; margin-bottom: 8px; }
+    .mode-card-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .mode-card-price { font-size: 13px; color: var(--accent); font-weight: 700; }
+    .mode-card-desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .style-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .style-btn {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      transition: border-color 0.2s;
+      font-family: var(--font);
+    }
+    .style-btn.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    .style-btn-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+
+    /* ─────────────────────────────────────────
+       SCREEN 7: FLOOR PLAN
+    ───────────────────────────────────────── */
+    #screen-floorplan .screen-body { padding-top: 16px; }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+    .upload-zone:hover { border-color: var(--accent); }
+    .upload-zone-icon { font-size: 40px; margin-bottom: 12px; }
+    .upload-zone-text { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .upload-zone-sub { font-size: 13px; color: var(--muted); }
+    #floorplan-editor {
+      position: relative;
+      width: 100%;
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 16px;
+      display: none;
+    }
+    #floorplan-editor img {
+      width: 100%;
+      height: auto;
+      display: block;
+      user-select: none;
+    }
+    .hotspot-marker {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 50%;
+      border: 3px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    /* ─────────────────────────────────────────
+       SCREEN 8: PROCESSING
+    ───────────────────────────────────────── */
+    #screen-processing {
+      justify-content: center;
+      padding: 40px 24px;
+    }
+    .processing-header { text-align: center; margin-bottom: 40px; }
+    .processing-spinner {
+      width: 56px;
+      height: 56px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .processing-header p { color: var(--muted); font-size: 14px; }
+    .steps-list { display: flex; flex-direction: column; gap: 4px; }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: border-color 0.3s;
+    }
+    .step-item.active { border-color: var(--accent); }
+    .step-item.done { border-color: var(--success); }
+    .step-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .step-item.active .step-icon { background: var(--accent-dim); }
+    .step-item.done .step-icon { background: rgba(34,197,94,0.15); }
+    .step-label { font-size: 14px; font-weight: 600; }
+    .step-sublabel { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .step-status {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .step-item.active .step-status { color: var(--accent); }
+    .step-item.done .step-status { color: var(--success); }
+
+    /* ─────────────────────────────────────────
+       SCREEN 9: VIEWER
+    ───────────────────────────────────────── */
+    #screen-viewer {
+      background: #000;
+      overflow: hidden;
+    }
+    #viewer-canvas-container {
+      position: absolute;
+      inset: 0;
+    }
+    #viewer-top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 52px 16px 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 10;
+    }
+    #viewer-room-name {
+      flex: 1;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .viewer-badge {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      backdrop-filter: blur(8px);
+    }
+    #splat-upgrade-banner {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 16px 20px 36px;
+      background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+      display: none;
+      z-index: 10;
+    }
+    #splat-upgrade-banner .banner-card {
+      background: var(--card);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .banner-icon { font-size: 24px; }
+    .banner-text { flex: 1; }
+    .banner-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
+    .banner-text span { font-size: 12px; color: var(--muted); }
+    .viewer-hint {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+      z-index: 5;
+      animation: fadeOut 3s ease-out 3s forwards;
+    }
+    @keyframes fadeOut { to { opacity: 0; } }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 1000;
+      transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--success); color: var(--success); }
+    #toast.error { border-color: var(--danger); color: var(--danger); }
+
+    /* ── DEMO BADGE ── */
+    #demo-badge {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: #f59e0b;
+      color: #000;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 16px 0;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- DEMO BADGE -->
+  <div id="demo-badge" style="display:none">DEMO</div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 1: LOGIN
+  ──────────────────────────────────── -->
+  <div id="screen-login" class="screen active">
+    <div class="login-logo">
+      <div class="logo">
+        <div class="logo-icon">🏠</div>
+        ImmoStage 3D
+      </div>
+      <p>KI-Immobilientouren für Makler</p>
+    </div>
+    <div class="login-card">
+      <h2>Anmelden</h2>
+      <div class="form-group">
+        <label class="form-label" for="login-email">E-Mail</label>
+        <input id="login-email" class="form-input" type="email" placeholder="makler@beispiel.de" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">Passwort</label>
+        <input id="login-password" class="form-input" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <div id="login-error" class="form-error" style="display:none"></div>
+      <button id="btn-login" class="btn btn-primary" style="margin-top:8px">Anmelden</button>
+      <div class="divider">oder</div>
+      <button id="btn-demo" class="btn btn-secondary">Demo starten (kein Login)</button>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 2: HOME / DASHBOARD LINK
+  ──────────────────────────────────── -->
+  <div id="screen-home" class="screen">
+    <div class="screen-header">
+      <div class="logo">
+        <div class="logo-icon">🏠</div>
+        ImmoStage 3D
+      </div>
+    </div>
+    <div class="screen-body">
+      <p class="home-greeting" id="home-greeting">Willkommen</p>
+      <div class="home-action-card" id="btn-new-scan">
+        <div class="action-icon indigo">📷</div>
+        <div class="action-text">
+          <h3>Neuer Scan</h3>
+          <p>Raum aufnehmen und 3D-Tour erstellen</p>
+        </div>
+        <span style="color:var(--muted);font-size:18px">›</span>
+      </div>
+      <div class="home-action-card" id="btn-go-dashboard">
+        <div class="action-icon green">🗂️</div>
+        <div class="action-text">
+          <h3>Meine Touren</h3>
+          <p>Alle Touren verwalten und teilen</p>
+        </div>
+        <span style="color:var(--muted);font-size:18px">›</span>
+      </div>
+      <button class="btn-logout" id="btn-logout">Abmelden</button>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 3: TOUR SETUP
+  ──────────────────────────────────── -->
+  <div id="screen-setup" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" data-target="home">←</button>
+      <h1>Scan einrichten</h1>
+    </div>
+    <div class="screen-body">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="new">Neue Tour</button>
+        <button class="tab-btn" data-tab="existing">Zu bestehender Tour</button>
+      </div>
+
+      <!-- New tour tab -->
+      <div id="tab-new" class="tab-panel active">
+        <div class="form-group">
+          <label class="form-label">Tour-Titel</label>
+          <input id="tour-title" class="form-input" type="text" placeholder="z.B. Musterstraße 12, Berlin" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Adresse</label>
+          <input id="tour-address" class="form-input" type="text" placeholder="Straße, PLZ Ort" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Raumname</label>
+          <input id="room-name-new" class="form-input" type="text" placeholder="z.B. Wohnzimmer" />
+        </div>
+      </div>
+
+      <!-- Existing tour tab -->
+      <div id="tab-existing" class="tab-panel">
+        <div class="form-group">
+          <label class="form-label">Tour auswählen</label>
+          <select id="existing-tour-select" class="form-select">
+            <option value="">Tour wählen...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Neuer Raumname</label>
+          <input id="room-name-existing" class="form-input" type="text" placeholder="z.B. Schlafzimmer" />
+        </div>
+      </div>
+
+      <button id="btn-start-capture" class="btn btn-primary" style="margin-top:8px">
+        Weiter zur Kamera
+      </button>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 4: PERMISSIONS
+  ──────────────────────────────────── -->
+  <div id="screen-permissions" class="screen">
+    <div class="perm-icon">🔐</div>
+    <h2>Berechtigungen erforderlich</h2>
+    <p>Für die 3D-Aufnahme werden Kamera und Bewegungssensoren benötigt.</p>
+    <div class="perm-list">
+      <div class="perm-item">
+        <span class="perm-item-icon">📷</span>
+        <div>
+          <strong>Kamera</strong>
+          <div style="font-size:12px;color:var(--muted)">Rückfahrkamera für Aufnahmen</div>
+        </div>
+      </div>
+      <div class="perm-item">
+        <span class="perm-item-icon">🧭</span>
+        <div>
+          <strong>Bewegungssensoren</strong>
+          <div style="font-size:12px;color:var(--muted)">Gyroskop für automatische Ausrichtung</div>
+        </div>
+      </div>
+    </div>
+    <button id="btn-grant-permissions" class="btn btn-primary" style="width:100%;max-width:340px">
+      Berechtigungen erteilen
+    </button>
+    <button id="btn-skip-permissions" class="btn btn-ghost" style="width:100%;max-width:340px;margin-top:10px">
+      Ohne Sensoren fortfahren
+    </button>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 5: CAPTURE
+  ──────────────────────────────────── -->
+  <div id="screen-capture" class="screen">
+    <video id="capture-video" autoplay playsinline muted></video>
+    <canvas id="capture-guide-canvas"></canvas>
+    <div id="capture-overlay">
+      <div class="capture-top-bar">
+        <button class="btn-back" data-target="setup" style="color:#fff;font-size:24px;background:rgba(0,0,0,0.4);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;">←</button>
+        <div class="capture-counter">
+          <span id="capture-count">0</span> / 12 Aufnahmen
+        </div>
+        <div style="width:36px"></div>
+      </div>
+      <div class="capture-hint" id="capture-hint">Richte die Punkte auf markante Stellen aus</div>
+      <div class="capture-bottom-bar">
+        <div class="capture-shutter" id="capture-shutter-btn">
+          <div class="capture-shutter-inner"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 6: REVIEW
+  ──────────────────────────────────── -->
+  <div id="screen-review" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" data-target="capture">←</button>
+      <h1>Überprüfen & Konfigurieren</h1>
+    </div>
+    <div class="screen-body">
+      <p class="section-label">Aufgenommene Fotos (<span id="review-count">0</span>)</p>
+      <div id="photo-grid" class="photo-grid"></div>
+
+      <p class="section-label">Staging-Modus</p>
+      <div class="mode-cards">
+        <div class="mode-card selected" data-mode="staged">
+          <div class="mode-card-emoji">✨</div>
+          <div class="mode-card-name">KI-Staging</div>
+          <div class="mode-card-price">€199</div>
+          <div class="mode-card-desc">Virtuell möbliert</div>
+        </div>
+        <div class="mode-card" data-mode="real">
+          <div class="mode-card-emoji">📷</div>
+          <div class="mode-card-name">Real</div>
+          <div class="mode-card-price">€99</div>
+          <div class="mode-card-desc">Originalzustand</div>
+        </div>
+      </div>
+
+      <div id="style-section">
+        <p class="section-label">Einrichtungsstil</p>
+        <div class="style-grid">
+          <button class="style-btn selected" data-style="modern">
+            <span class="style-btn-icon">🏙️</span>Modern
+          </button>
+          <button class="style-btn" data-style="scandinavian">
+            <span class="style-btn-icon">🌿</span>Skandinavisch
+          </button>
+          <button class="style-btn" data-style="luxury">
+            <span class="style-btn-icon">💎</span>Luxus
+          </button>
+          <button class="style-btn" data-style="midcentury">
+            <span class="style-btn-icon">🪑</span>Mid-Century
+          </button>
+          <button class="style-btn" data-style="coastal">
+            <span class="style-btn-icon">🌊</span>Coastal
+          </button>
+          <button class="style-btn" data-style="industrial">
+            <span class="style-btn-icon">🔩</span>Industrial
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Benutzerdefinierter Hinweis (optional)</label>
+          <input id="custom-prompt" class="form-input" type="text" placeholder="z.B. helle Farben, Holzboden..." />
+        </div>
+      </div>
+
+      <button id="btn-generate" class="btn btn-primary">3D-Tour generieren</button>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 7: FLOOR PLAN
+  ──────────────────────────────────── -->
+  <div id="screen-floorplan" class="screen">
+    <div class="screen-header">
+      <button class="btn-back" data-target="review">←</button>
+      <h1>Grundriss (optional)</h1>
+    </div>
+    <div class="screen-body">
+      <p style="color:var(--muted);font-size:14px;margin-bottom:20px">
+        Lade einen Grundriss hoch und tippe auf die Position des gescannten Raums.
+      </p>
+
+      <div class="upload-zone" id="floorplan-upload-zone">
+        <div class="upload-zone-icon">🗺️</div>
+        <div class="upload-zone-text">Grundriss hochladen</div>
+        <div class="upload-zone-sub">JPG oder PNG, max. 10 MB</div>
+        <input id="floorplan-file-input" type="file" accept="image/*" style="display:none" />
+      </div>
+
+      <div id="floorplan-editor">
+        <img id="floorplan-img" src="" alt="Grundriss" />
+        <div id="floorplan-hotspot-layer"></div>
+      </div>
+
+      <div id="floorplan-hint" style="display:none;color:var(--muted);font-size:13px;margin-bottom:16px">
+        Tippe auf die Position des Raums im Grundriss.
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button id="btn-floorplan-skip" class="btn btn-ghost" style="flex:1">Überspringen</button>
+        <button id="btn-floorplan-next" class="btn btn-primary" style="flex:2">Weiter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 8: PROCESSING
+  ──────────────────────────────────── -->
+  <div id="screen-processing" class="screen">
+    <div class="processing-header">
+      <div class="processing-spinner"></div>
+      <h2>Wird verarbeitet…</h2>
+      <p id="processing-subtitle">Dein 3D-Erlebnis wird erstellt</p>
+    </div>
+    <div class="steps-list">
+      <div class="step-item" id="step-upload">
+        <div class="step-icon">⬆️</div>
+        <div>
+          <div class="step-label">Hochladen</div>
+          <div class="step-sublabel">Fotos werden übertragen</div>
+        </div>
+        <span class="step-status">Warten</span>
+      </div>
+      <div class="step-item" id="step-staging">
+        <div class="step-icon">✨</div>
+        <div>
+          <div class="step-label">KI-Staging</div>
+          <div class="step-sublabel">Raum wird möbliert</div>
+        </div>
+        <span class="step-status">Warten</span>
+      </div>
+      <div class="step-item" id="step-depth">
+        <div class="step-icon">🗺️</div>
+        <div>
+          <div class="step-label">Tiefenkarte</div>
+          <div class="step-sublabel">3D-Struktur wird berechnet</div>
+        </div>
+        <span class="step-status">Warten</span>
+      </div>
+      <div class="step-item" id="step-fast">
+        <div class="step-icon">⚡</div>
+        <div>
+          <div class="step-label">Schnelle 3D-Vorschau</div>
+          <div class="step-sublabel">Panorama wird erstellt</div>
+        </div>
+        <span class="step-status">Warten</span>
+      </div>
+      <div class="step-item" id="step-full">
+        <div class="step-icon">🏆</div>
+        <div>
+          <div class="step-label">Vollständige 3D-Rekonstruktion</div>
+          <div class="step-sublabel">Gaussian Splat wird generiert</div>
+        </div>
+        <span class="step-status">Warten</span>
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <button id="btn-view-fast" class="btn btn-primary" style="display:none">
+        Schnellvorschau ansehen
+      </button>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────
+       SCREEN 9: SPHERE VIEWER
+  ──────────────────────────────────── -->
+  <div id="screen-viewer" class="screen">
+    <div id="viewer-canvas-container"></div>
+    <div id="viewer-top-bar">
+      <button class="btn-back" data-target="processing" style="color:#fff;font-size:20px;background:rgba(0,0,0,0.4);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;">←</button>
+      <span id="viewer-room-name">Wohnzimmer</span>
+      <span class="viewer-badge" id="viewer-quality-badge">Vorschau</span>
+    </div>
+    <div class="viewer-hint" id="viewer-hint">
+      📱 Gerät schwenken oder ziehen zum Navigieren
+    </div>
+    <div id="splat-upgrade-banner">
+      <div class="banner-card">
+        <div class="banner-icon">🏆</div>
+        <div class="banner-text">
+          <strong>Vollständige 3D-Version verfügbar</strong>
+          <span>Gaussian Splat mit 6DOF Navigation</span>
+        </div>
+        <button id="btn-load-splat" class="btn btn-primary" style="width:auto;padding:8px 16px;font-size:13px">
+          Laden
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<script type="module">
+import { supabase } from './supabase-client.js'
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+const State = {
+  user: null,
+  isDemo: false,
+  currentScreen: 'login',
+  // Setup
+  tourId: null,
+  tourTitle: '',
+  tourAddress: '',
+  roomId: null,
+  roomName: '',
+  setupMode: 'new', // 'new' | 'existing'
+  // Capture
+  capturedPhotos: [],  // [{blob, imu}]
+  cameraStream: null,
+  gyroEnabled: false,
+  imu: { yaw: 0, pitch: 0 },
+  guidePoints: [],     // [{theta, phi, captured}]
+  autoCapture: true,
+  // Review
+  selectedMode: 'staged',
+  selectedStyle: 'modern',
+  // Floor plan
+  hotspot: null, // {x, y} 0-1 fraction
+  floorplanFile: null,
+  // Processing
+  currentRoomId: null,
+  splatUrl: null,
+  panoramaUrl: null,
+  depthUrl: null,
+  // Three.js
+  threeScene: null,
+  threeCamera: null,
+  threeRenderer: null,
+  threeRAF: null,
+}
+
+// ══════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = `show ${type}`
+  clearTimeout(el._t)
+  el._t = setTimeout(() => { el.className = '' }, 3000)
+}
+
+function showScreen(id) {
+  const prev = document.querySelector('.screen.active')
+  const next = document.getElementById(`screen-${id}`)
+  if (!next || prev === next) return
+  if (prev) {
+    prev.classList.remove('active')
+    prev.classList.add('exit-left')
+    setTimeout(() => prev.classList.remove('exit-left'), 400)
+  }
+  next.classList.add('active')
+  State.currentScreen = id
+}
+
+// ══════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════
+async function initAuth() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) {
+    State.user = session.user
+    afterLogin()
+  }
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim()
+  const password = document.getElementById('login-password').value
+  const errEl = document.getElementById('login-error')
+  const btn = document.getElementById('btn-login')
+
+  if (!email || !password) { errEl.textContent = 'Bitte E-Mail und Passwort eingeben.'; errEl.style.display = 'block'; return }
+
+  btn.disabled = true
+  btn.textContent = 'Anmelden…'
+  errEl.style.display = 'none'
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  btn.disabled = false
+  btn.textContent = 'Anmelden'
+
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return }
+  State.user = data.user
+  afterLogin()
+}
+
+async function afterLogin() {
+  const email = State.user?.email || 'Makler'
+  document.getElementById('home-greeting').textContent = `Willkommen, ${email.split('@')[0]}`
+
+  // Ensure agent record exists (upsert on first login)
+  if (!State.isDemo && State.user?.id) {
+    await supabase.from('agents').upsert({
+      id: State.user.id,
+      email: State.user.email,
+    }, { onConflict: 'id', ignoreDuplicates: true })
+  }
+
+  showScreen('home')
+  loadExistingTours()
+}
+
+function startDemo() {
+  State.isDemo = true
+  State.user = { id: 'demo-user', email: 'demo@immostage.ai' }
+  document.getElementById('demo-badge').style.display = 'block'
+  afterLogin()
+}
+
+// ══════════════════════════════════════
+// TOURS
+// ══════════════════════════════════════
+async function loadExistingTours() {
+  if (State.isDemo) return
+  const { data } = await supabase
+    .from('tours')
+    .select('id, title')
+    .eq('agent_id', State.user.id)
+    .order('created_at', { ascending: false })
+
+  const sel = document.getElementById('existing-tour-select')
+  sel.innerHTML = '<option value="">Tour wählen...</option>'
+  ;(data || []).forEach(t => {
+    const o = document.createElement('option')
+    o.value = t.id
+    o.textContent = t.title
+    sel.appendChild(o)
+  })
+}
+
+// ══════════════════════════════════════
+// PERMISSIONS
+// ══════════════════════════════════════
+async function requestPermissions() {
+  try {
+    // iOS motion permission
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const result = await DeviceOrientationEvent.requestPermission()
+      State.gyroEnabled = result === 'granted'
+    } else {
+      State.gyroEnabled = true
+    }
+    // Camera
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    })
+    State.cameraStream = stream
+    document.getElementById('capture-video').srcObject = stream
+    initCapture()
+    showScreen('capture')
+  } catch (err) {
+    toast('Kamera-Zugriff verweigert: ' + err.message, 'error')
+  }
+}
+
+function skipPermissions() {
+  State.gyroEnabled = false
+  initCapture()
+  showScreen('capture')
+}
+
+// ══════════════════════════════════════
+// CAPTURE
+// ══════════════════════════════════════
+const GUIDE_POINTS = [
+  // Row top
+  { theta: -30, phi: -60 }, { theta: -30, phi: 0 }, { theta: -30, phi: 60 }, { theta: -30, phi: 120 },
+  // Row middle
+  { theta: 0, phi: -60 }, { theta: 0, phi: 0 }, { theta: 0, phi: 60 }, { theta: 0, phi: 120 },
+  // Row bottom
+  { theta: 30, phi: -60 }, { theta: 30, phi: 0 }, { theta: 30, phi: 60 }, { theta: 30, phi: 120 },
+]
+
+function initCapture() {
+  State.capturedPhotos = []
+  State.guidePoints = GUIDE_POINTS.map(p => ({ ...p, captured: false }))
+  updateCaptureCounter()
+  initGuideCanvas()
+  if (State.gyroEnabled) {
+    window.addEventListener('deviceorientation', onDeviceOrientation)
+  }
+}
+
+function initGuideCanvas() {
+  const canvas = document.getElementById('capture-guide-canvas')
+  const resizeCanvas = () => {
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+    drawGuide()
+  }
+  resizeCanvas()
+  window.addEventListener('resize', resizeCanvas)
+}
+
+function drawGuide() {
+  const canvas = document.getElementById('capture-guide-canvas')
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  const cx = canvas.width / 2
+  const cy = canvas.height / 2
+  const scale = Math.min(canvas.width, canvas.height) / 4
+
+  State.guidePoints.forEach((pt, i) => {
+    // Project spherical to 2D
+    const thetaRad = (pt.theta - State.imu.pitch) * Math.PI / 180
+    const phiRad = (pt.phi - State.imu.yaw) * Math.PI / 180
+
+    const x = cx + Math.sin(phiRad) * Math.cos(thetaRad) * scale * 2.5
+    const y = cy - Math.sin(thetaRad) * scale * 2.5
+
+    const distYaw = Math.abs(normalizeAngle(pt.phi - State.imu.yaw))
+    const distPitch = Math.abs(normalizeAngle(pt.theta - State.imu.pitch))
+    const dist = Math.sqrt(distYaw * distYaw + distPitch * distPitch)
+    const isAligned = dist < 12
+
+    if (pt.captured) {
+      ctx.beginPath()
+      ctx.arc(x, y, 8, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(34,197,94,0.8)'
+      ctx.fill()
+      ctx.strokeStyle = '#22c55e'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      // checkmark
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(x - 3, y)
+      ctx.lineTo(x - 1, y + 3)
+      ctx.lineTo(x + 4, y - 3)
+      ctx.stroke()
+    } else {
+      ctx.beginPath()
+      ctx.arc(x, y, isAligned ? 12 : 8, 0, Math.PI * 2)
+      ctx.strokeStyle = isAligned ? '#6366f1' : 'rgba(255,255,255,0.5)'
+      ctx.lineWidth = isAligned ? 3 : 1.5
+      ctx.stroke()
+      if (isAligned) {
+        ctx.fillStyle = 'rgba(99,102,241,0.2)'
+        ctx.fill()
+      }
+    }
+  })
+
+  // Crosshair
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(cx - 20, cy)
+  ctx.lineTo(cx - 8, cy)
+  ctx.moveTo(cx + 8, cy)
+  ctx.lineTo(cx + 20, cy)
+  ctx.moveTo(cx, cy - 20)
+  ctx.lineTo(cx, cy - 8)
+  ctx.moveTo(cx, cy + 8)
+  ctx.lineTo(cx, cy + 20)
+  ctx.stroke()
+
+  // ── HORIZON LEVEL LINE ──
+  // beta ≈ 90° when phone is upright and level. Deviation from 90° = tilt.
+  const pitch = State.imu.pitch || 0
+  const tiltDeg = pitch - 90  // 0 = perfectly level
+  const tiltPx = (tiltDeg / 45) * (canvas.height / 2)  // map ±45° to half screen
+  const isLevel = Math.abs(tiltDeg) < 2  // within 2° = level
+  const lineY = cy + tiltPx
+
+  // Horizon line across full width
+  ctx.strokeStyle = isLevel ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.35)'
+  ctx.lineWidth = isLevel ? 2.5 : 1.5
+  ctx.setLineDash(isLevel ? [] : [8, 6])
+  ctx.beginPath()
+  ctx.moveTo(0, lineY)
+  ctx.lineTo(canvas.width, lineY)
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  // Level indicator pill
+  if (Math.abs(tiltDeg) < 20) {
+    const pillText = isLevel ? '✓' : `${tiltDeg > 0 ? '+' : ''}${tiltDeg.toFixed(1)}°`
+    ctx.font = '600 12px system-ui'
+    const tw = ctx.measureText(pillText).width
+    const px = canvas.width - tw - 24
+    const py = lineY - 14
+
+    ctx.fillStyle = isLevel ? 'rgba(34,197,94,0.85)' : 'rgba(0,0,0,0.6)'
+    ctx.beginPath()
+    ctx.roundRect(px - 6, py - 10, tw + 12, 20, 6)
+    ctx.fill()
+
+    ctx.fillStyle = '#fff'
+    ctx.fillText(pillText, px, py + 4)
+  }
+}
+
+function normalizeAngle(a) {
+  while (a > 180) a -= 360
+  while (a < -180) a += 360
+  return a
+}
+
+function onDeviceOrientation(e) {
+  State.imu.yaw = e.alpha || 0
+  State.imu.pitch = e.beta || 0
+  drawGuide()
+  if (State.autoCapture) checkAutoCapture()
+}
+
+function checkAutoCapture() {
+  const nextIdx = State.guidePoints.findIndex(p => !p.captured)
+  if (nextIdx === -1) return
+  const pt = State.guidePoints[nextIdx]
+  const distYaw = Math.abs(normalizeAngle(pt.phi - State.imu.yaw))
+  const distPitch = Math.abs(normalizeAngle(pt.theta - State.imu.pitch))
+  if (Math.sqrt(distYaw * distYaw + distPitch * distPitch) < 10) {
+    capturePhoto(nextIdx)
+  }
+}
+
+async function capturePhoto(idx) {
+  const video = document.getElementById('capture-video')
+  const canvas = document.createElement('canvas')
+  canvas.width = video.videoWidth || 1280
+  canvas.height = video.videoHeight || 720
+  canvas.getContext('2d').drawImage(video, 0, 0)
+
+  canvas.toBlob(blob => {
+    if (!blob) return
+    const photo = { blob, imu: { yaw: State.imu.yaw, pitch: State.imu.pitch } }
+    if (idx !== undefined) {
+      State.guidePoints[idx].captured = true
+    } else {
+      // Manual: mark next uncaptured
+      const nextIdx = State.guidePoints.findIndex(p => !p.captured)
+      if (nextIdx !== -1) State.guidePoints[nextIdx].captured = true
+    }
+    State.capturedPhotos.push(photo)
+    updateCaptureCounter()
+    drawGuide()
+
+    if (State.capturedPhotos.length >= 12) {
+      toast('Alle 12 Aufnahmen gemacht!', 'success')
+      setTimeout(() => showScreen('review'), 800)
+      buildReviewGrid()
+    }
+  }, 'image/jpeg', 0.85)
+}
+
+function updateCaptureCounter() {
+  document.getElementById('capture-count').textContent = State.capturedPhotos.length
+}
+
+function buildReviewGrid() {
+  const grid = document.getElementById('photo-grid')
+  grid.innerHTML = ''
+  document.getElementById('review-count').textContent = State.capturedPhotos.length
+
+  State.capturedPhotos.forEach(p => {
+    const url = URL.createObjectURL(p.blob)
+    const img = document.createElement('img')
+    img.className = 'photo-thumb'
+    img.src = url
+    grid.appendChild(img)
+  })
+}
+
+// Demo: generate dummy photos
+function generateDemoPhotos() {
+  State.capturedPhotos = []
+  State.guidePoints = GUIDE_POINTS.map(p => ({ ...p, captured: true }))
+  // Create 12 tiny canvas blobs
+  const promises = Array.from({ length: 12 }, (_, i) => new Promise(res => {
+    const c = document.createElement('canvas')
+    c.width = 320; c.height = 240
+    const ctx = c.getContext('2d')
+    ctx.fillStyle = `hsl(${i * 30},40%,25%)`
+    ctx.fillRect(0, 0, 320, 240)
+    ctx.fillStyle = '#fff'
+    ctx.font = '20px system-ui'
+    ctx.fillText(`Demo-Foto ${i + 1}`, 80, 120)
+    c.toBlob(blob => {
+      State.capturedPhotos.push({ blob, imu: { yaw: i * 30, pitch: 0 } })
+      res()
+    }, 'image/jpeg', 0.8)
+  }))
+  return Promise.all(promises)
+}
+
+// ══════════════════════════════════════
+// IMAGE COMPRESSION
+// ══════════════════════════════════════
+async function compressImage(blob, maxWidth, quality) {
+  const img = new Image()
+  img.src = URL.createObjectURL(blob)
+  await new Promise(res => img.onload = res)
+  const canvas = document.createElement('canvas')
+  const ratio = Math.min(maxWidth / img.width, 1)
+  canvas.width = img.width * ratio
+  canvas.height = img.height * ratio
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+  return new Promise(res => canvas.toBlob(res, 'image/jpeg', quality))
+}
+
+// ══════════════════════════════════════
+// JOB SUBMISSION
+// ══════════════════════════════════════
+async function submitJob() {
+  const mode = State.selectedMode
+  const style = State.selectedStyle
+  const prompt = document.getElementById('custom-prompt').value.trim()
+  const hotspot = State.hotspot
+
+  if (State.isDemo) {
+    runDemoProcessing()
+    return
+  }
+
+  const user = (await supabase.auth.getUser()).data.user
+
+  // 1. Ensure tour exists
+  let tourId = State.tourId
+  if (!tourId) {
+    const { data: tour, error } = await supabase.from('tours').insert({
+      agent_id: user.id,
+      title: State.tourTitle || 'Neue Tour',
+      address: State.tourAddress || '',
+    }).select().single()
+    if (error) { toast('Fehler beim Erstellen der Tour', 'error'); return }
+    tourId = tour.id
+    State.tourId = tourId
+  }
+
+  // 2. Create room record
+  const { data: room, error: roomErr } = await supabase.from('tour_rooms').insert({
+    tour_id: tourId,
+    agent_id: user.id,
+    name: State.roomName || 'Raum',
+    mode,
+    style,
+    prompt,
+    hotspot_x: hotspot?.x,
+    hotspot_y: hotspot?.y,
+    status: 'uploading',
+  }).select().single()
+
+  if (roomErr) { toast('Fehler beim Erstellen des Raums', 'error'); console.error(roomErr); return }
+
+  State.currentRoomId = room.id
+  showScreen('processing')
+  setStep('upload', 'active')
+
+  // 3. Upload photos
+  for (let i = 0; i < State.capturedPhotos.length; i++) {
+    const { blob, imu } = State.capturedPhotos[i]
+    const filename = `photo_${String(i).padStart(4, '0')}_y${Math.round(imu.yaw)}_p${Math.round(imu.pitch)}.jpg`
+    const path = `scans/${room.id}/input/${filename}`
+    const compressed = await compressImage(blob, 1280, 0.82)
+    const { error: upErr } = await supabase.storage.from('scans').upload(path, compressed, { contentType: 'image/jpeg' })
+    if (upErr) console.warn('Upload warning:', upErr.message)
+  }
+
+  // 4. Upload floor plan if present
+  if (State.floorplanFile) {
+    const fpPath = `scans/${room.id}/floorplan.jpg`
+    await supabase.storage.from('scans').upload(fpPath, State.floorplanFile)
+    const { data: { publicUrl } } = supabase.storage.from('scans').getPublicUrl(fpPath)
+    await supabase.from('tours').update({ floorplan_url: publicUrl }).eq('id', tourId)
+  }
+
+  setStep('upload', 'done')
+
+  // 5. Update status + trigger backend
+  await supabase.from('tour_rooms').update({
+    status: 'processing',
+    input_folder: `scans/${room.id}/input/`,
+  }).eq('id', room.id)
+
+  try {
+    await fetch('/api/trigger-job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: room.id }),
+    })
+  } catch (e) {
+    console.warn('trigger-job not reachable (local dev):', e.message)
+  }
+
+  // 6. Subscribe realtime
+  subscribeToRoom(room.id)
+}
+
+// ══════════════════════════════════════
+// REALTIME
+// ══════════════════════════════════════
+function subscribeToRoom(roomId) {
+  supabase.channel(`room-${roomId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'tour_rooms',
+      filter: `id=eq.${roomId}`,
+    }, ({ new: room }) => {
+      switch (room.status) {
+        case 'staging':
+          setStep('staging', 'active')
+          break
+        case 'staged':
+          setStep('staging', 'done')
+          setStep('depth', 'active')
+          break
+        case 'depth_done':
+          setStep('depth', 'done')
+          setStep('fast', 'active')
+          break
+        case 'fast_ready':
+          setStep('fast', 'done')
+          setStep('full', 'active')
+          State.panoramaUrl = room.panorama_url
+          State.depthUrl = room.depth_url
+          document.getElementById('btn-view-fast').style.display = 'block'
+          break
+        case 'complete':
+          setStep('full', 'done')
+          State.splatUrl = room.splat_url
+          if (room.splat_url) showSplatUpgradeBanner(room.splat_url)
+          document.getElementById('processing-subtitle').textContent =
+            'Tour vollständig! Ansehen oder teilen.'
+          break
+        case 'failed':
+          toast('Verarbeitung fehlgeschlagen: ' + (room.error_msg || 'Unbekannter Fehler'), 'error')
+          break
+      }
+    })
+    .subscribe()
+}
+
+function setStep(stepId, status) {
+  const el = document.getElementById(`step-${stepId}`)
+  if (!el) return
+  el.classList.remove('active', 'done')
+  const statusEl = el.querySelector('.step-status')
+  if (status === 'active') {
+    el.classList.add('active')
+    if (statusEl) statusEl.textContent = 'Aktiv'
+  } else if (status === 'done') {
+    el.classList.add('done')
+    if (statusEl) statusEl.textContent = 'Fertig ✓'
+  }
+}
+
+// ══════════════════════════════════════
+// DEMO PROCESSING SIMULATION
+// ══════════════════════════════════════
+function runDemoProcessing() {
+  showScreen('processing')
+  const steps = [
+    { id: 'upload', delay: 1000 },
+    { id: 'staging', delay: 2500 },
+    { id: 'depth', delay: 4000 },
+    { id: 'fast', delay: 5500 },
+    { id: 'full', delay: 8000 },
+  ]
+  steps.forEach((s, i) => {
+    setTimeout(() => setStep(s.id, 'active'), s.delay)
+    const nextDelay = steps[i + 1]?.delay || s.delay + 1500
+    setTimeout(() => setStep(s.id, 'done'), nextDelay)
+  })
+  setTimeout(() => {
+    document.getElementById('btn-view-fast').style.display = 'block'
+    State.panoramaUrl = null // demo has no real URL
+    toast('Demo-Verarbeitung abgeschlossen!', 'success')
+  }, 8000)
+}
+
+// ══════════════════════════════════════
+// SPHERE VIEWER (Three.js)
+// ══════════════════════════════════════
+function loadSphereViewer(panoramaUrl, depthUrl) {
+  const container = document.getElementById('viewer-canvas-container')
+  container.innerHTML = ''
+  if (State.threeRAF) cancelAnimationFrame(State.threeRAF)
+  if (State.threeRenderer) State.threeRenderer.dispose()
+
+  const w = container.clientWidth || window.innerWidth
+  const h = container.clientHeight || window.innerHeight
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer.setSize(w, h)
+  renderer.setPixelRatio(window.devicePixelRatio)
+  container.appendChild(renderer.domElement)
+  State.threeRenderer = renderer
+
+  const scene = new THREE.Scene()
+  const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000)
+  camera.position.set(0, 0, 0.1)
+  State.threeScene = scene
+  State.threeCamera = camera
+
+  // Sphere geometry
+  const geo = new THREE.SphereGeometry(50, 64, 32)
+  geo.scale(-1, 1, 1) // invert normals
+
+  let mat
+  if (panoramaUrl) {
+    const loader = new THREE.TextureLoader()
+    loader.load(panoramaUrl, tex => {
+      mat.map = tex
+      mat.needsUpdate = true
+    })
+    mat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a })
+  } else {
+    // Demo: gradient
+    mat = new THREE.MeshBasicMaterial({ color: 0x2a1a3a })
+  }
+
+  const sphere = new THREE.Mesh(geo, mat)
+  scene.add(sphere)
+
+  // Controls
+  let isDragging = false
+  let lastX = 0, lastY = 0
+  let lon = 0, lat = 0
+
+  renderer.domElement.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY })
+  renderer.domElement.addEventListener('mousemove', e => {
+    if (!isDragging) return
+    lon -= (e.clientX - lastX) * 0.2
+    lat += (e.clientY - lastY) * 0.1
+    lat = Math.max(-85, Math.min(85, lat))
+    lastX = e.clientX; lastY = e.clientY
+  })
+  renderer.domElement.addEventListener('mouseup', () => isDragging = false)
+
+  renderer.domElement.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { lastX = e.touches[0].clientX; lastY = e.touches[0].clientY }
+  }, { passive: true })
+  renderer.domElement.addEventListener('touchmove', e => {
+    if (e.touches.length === 1) {
+      lon -= (e.touches[0].clientX - lastX) * 0.2
+      lat += (e.touches[0].clientY - lastY) * 0.1
+      lat = Math.max(-85, Math.min(85, lat))
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY
+    }
+  }, { passive: true })
+
+  // Gyro
+  if (State.gyroEnabled) {
+    window.addEventListener('deviceorientation', e => {
+      if (!isDragging) {
+        lon = e.alpha || 0
+        lat = Math.max(-85, Math.min(85, (e.beta || 0) - 90))
+      }
+    })
+  }
+
+  function animate() {
+    State.threeRAF = requestAnimationFrame(animate)
+    const phi = THREE.MathUtils.degToRad(90 - lat)
+    const theta = THREE.MathUtils.degToRad(lon)
+    camera.lookAt(
+      Math.sin(phi) * Math.cos(theta),
+      Math.cos(phi),
+      Math.sin(phi) * Math.sin(theta)
+    )
+    renderer.render(scene, camera)
+  }
+  animate()
+
+  // Resize
+  window.addEventListener('resize', () => {
+    const w2 = container.clientWidth
+    const h2 = container.clientHeight
+    renderer.setSize(w2, h2)
+    camera.aspect = w2 / h2
+    camera.updateProjectionMatrix()
+  })
+}
+
+function showSplatUpgradeBanner(splatUrl) {
+  State.splatUrl = splatUrl
+  document.getElementById('splat-upgrade-banner').style.display = 'block'
+}
+
+// ══════════════════════════════════════
+// EVENT LISTENERS
+// ══════════════════════════════════════
+// Expose for E2E testing
+window.State = State
+window.showScreen = showScreen
+window.buildReviewGrid = buildReviewGrid
+window.submitJob = submitJob
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await initAuth()
+
+  // Login
+  document.getElementById('btn-login').addEventListener('click', login)
+  document.getElementById('login-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login()
+  })
+  document.getElementById('btn-demo').addEventListener('click', startDemo)
+
+  // Home
+  document.getElementById('btn-new-scan').addEventListener('click', () => showScreen('setup'))
+  document.getElementById('btn-go-dashboard').addEventListener('click', () => {
+    window.location.href = '/dashboard.html'
+  })
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await supabase.auth.signOut()
+    State.user = null
+    showScreen('login')
+  })
+
+  // Setup tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+      btn.classList.add('active')
+      document.getElementById(`tab-${tab}`).classList.add('active')
+      State.setupMode = tab
+    })
+  })
+
+  document.getElementById('btn-start-capture').addEventListener('click', () => {
+    if (State.setupMode === 'new') {
+      State.tourTitle = document.getElementById('tour-title').value.trim()
+      State.tourAddress = document.getElementById('tour-address').value.trim()
+      State.roomName = document.getElementById('room-name-new').value.trim() || 'Raum'
+    } else {
+      State.tourId = document.getElementById('existing-tour-select').value
+      State.roomName = document.getElementById('room-name-existing').value.trim() || 'Raum'
+      if (!State.tourId) { toast('Bitte eine Tour auswählen', 'error'); return }
+    }
+    showScreen('permissions')
+  })
+
+  // Permissions
+  document.getElementById('btn-grant-permissions').addEventListener('click', requestPermissions)
+  document.getElementById('btn-skip-permissions').addEventListener('click', () => {
+    if (State.isDemo) {
+      generateDemoPhotos().then(() => {
+        State.guidePoints = GUIDE_POINTS.map(p => ({ ...p, captured: true }))
+        buildReviewGrid()
+        showScreen('review')
+      })
+    } else {
+      skipPermissions()
+    }
+  })
+
+  // Capture
+  document.getElementById('capture-shutter-btn').addEventListener('click', () => capturePhoto())
+
+  // Mode selection
+  document.querySelectorAll('.mode-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'))
+      card.classList.add('selected')
+      State.selectedMode = card.dataset.mode
+      document.getElementById('style-section').style.display =
+        State.selectedMode === 'staged' ? 'block' : 'none'
+    })
+  })
+
+  // Style selection
+  document.querySelectorAll('.style-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('selected'))
+      btn.classList.add('selected')
+      State.selectedStyle = btn.dataset.style
+    })
+  })
+
+  // Review → Floor plan
+  document.getElementById('btn-generate').addEventListener('click', () => {
+    if (State.capturedPhotos.length === 0) {
+      toast('Bitte zuerst Fotos aufnehmen', 'error')
+      return
+    }
+    showScreen('floorplan')
+  })
+
+  // Floor plan upload
+  const uploadZone = document.getElementById('floorplan-upload-zone')
+  const fileInput = document.getElementById('floorplan-file-input')
+
+  uploadZone.addEventListener('click', () => fileInput.click())
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0]
+    if (!file) return
+    State.floorplanFile = file
+    const url = URL.createObjectURL(file)
+    const img = document.getElementById('floorplan-img')
+    img.src = url
+    const editor = document.getElementById('floorplan-editor')
+    editor.style.display = 'block'
+    uploadZone.style.display = 'none'
+    document.getElementById('floorplan-hint').style.display = 'block'
+    document.getElementById('floorplan-hotspot-layer').innerHTML = ''
+    State.hotspot = null
+  })
+
+  // Hotspot placement
+  document.getElementById('floorplan-editor').addEventListener('click', e => {
+    if (e.target.id === 'floorplan-editor' || e.target.tagName === 'IMG') {
+      const editor = document.getElementById('floorplan-editor')
+      const rect = editor.getBoundingClientRect()
+      const x = (e.clientX - rect.left) / rect.width
+      const y = (e.clientY - rect.top) / rect.height
+      State.hotspot = { x, y }
+
+      const layer = document.getElementById('floorplan-hotspot-layer')
+      layer.innerHTML = ''
+      const marker = document.createElement('div')
+      marker.className = 'hotspot-marker'
+      marker.style.left = `${x * 100}%`
+      marker.style.top = `${y * 100}%`
+      marker.textContent = '📍'
+      layer.appendChild(marker)
+    }
+  })
+
+  document.getElementById('btn-floorplan-skip').addEventListener('click', () => submitJob())
+  document.getElementById('btn-floorplan-next').addEventListener('click', () => submitJob())
+
+  // Processing
+  document.getElementById('btn-view-fast').addEventListener('click', () => {
+    showScreen('viewer')
+    document.getElementById('viewer-room-name').textContent = State.roomName || 'Raum'
+    loadSphereViewer(State.panoramaUrl, State.depthUrl)
+  })
+
+  // Splat upgrade
+  document.getElementById('btn-load-splat').addEventListener('click', async () => {
+    if (!State.splatUrl) return
+    toast('Gaussian Splat wird geladen…')
+    document.getElementById('splat-upgrade-banner').style.display = 'none'
+    document.getElementById('viewer-quality-badge').textContent = '3D Gaussian Splat'
+    // Load splat viewer
+    try {
+      const { GaussianSplatViewer } = await import('https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.2/build/gaussian-splats-3d.module.min.js')
+      const container = document.getElementById('viewer-canvas-container')
+      container.innerHTML = ''
+      if (State.threeRAF) cancelAnimationFrame(State.threeRAF)
+      const viewer = new GaussianSplatViewer({ rootElement: container, selfDrivenMode: true })
+      await viewer.loadFile(State.splatUrl)
+      viewer.start()
+    } catch (e) {
+      toast('Splat-Viewer konnte nicht geladen werden: ' + e.message, 'error')
+    }
+  })
+
+  // Back buttons
+  document.querySelectorAll('[data-target]').forEach(btn => {
+    btn.addEventListener('click', () => showScreen(btn.dataset.target))
+  })
+})
+</script>
+</body>
+</html>

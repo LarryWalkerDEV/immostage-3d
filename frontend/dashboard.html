@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>ImmoStage 3D – Meine Touren</title>
+  <link rel="manifest" href="/manifest.json" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #6366f1;
+      --accent-hover: #4f52d6;
+      --accent-dim: rgba(99,102,241,0.15);
+      --text: #f0f0f0;
+      --muted: #888;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --radius: 12px;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    #app {
+      max-width: 520px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .page-header {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 52px 20px 16px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .logo-icon {
+      width: 34px; height: 34px;
+      background: var(--accent);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-icon {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: border-color 0.2s;
+    }
+    .btn-icon:hover { border-color: var(--accent); }
+
+    /* ── MAIN CONTENT ── */
+    .page-body { padding: 20px; }
+
+    /* ── LOADING / EMPTY / ERROR ── */
+    .state-container {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .state-icon { font-size: 52px; margin-bottom: 16px; }
+    .state-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .state-sub { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOUR CARD ── */
+    .tours-grid { display: flex; flex-direction: column; gap: 16px; }
+    .tour-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .tour-card-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .tour-thumbnail {
+      width: 80px; height: 60px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .tour-thumbnail-placeholder {
+      width: 80px; height: 60px;
+      border-radius: 8px;
+      background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .tour-meta { flex: 1; min-width: 0; }
+    .tour-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tour-address { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .tour-stats {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 3px 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .stat-chip strong { color: var(--text); }
+
+    /* ── ROOMS LIST ── */
+    .tour-rooms {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .rooms-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 8px;
+    }
+    .room-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .room-row:last-child { border-bottom: none; }
+    .room-row-name { flex: 1; font-size: 13px; }
+    .status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+    }
+    .status-complete { background: rgba(34,197,94,0.15); color: var(--success); }
+    .status-fast_ready { background: rgba(99,102,241,0.15); color: var(--accent); }
+    .status-processing { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .status-uploading { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .status-failed { background: rgba(239,68,68,0.15); color: var(--danger); }
+    .status-pending { background: var(--border); color: var(--muted); }
+
+    /* ── TOUR ACTIONS ── */
+    .tour-actions {
+      padding: 12px 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-sm {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: var(--font);
+      transition: opacity 0.15s;
+    }
+    .btn-sm:hover { opacity: 0.85; }
+    .btn-sm-primary { background: var(--accent); color: #fff; }
+    .btn-sm-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-sm-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+
+    /* ── LINK COPY ── */
+    .tour-link-row {
+      padding: 10px 14px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tour-link-url {
+      flex: 1;
+      font-size: 11px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 1000;
+      transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--success); color: var(--success); }
+    #toast.error { border-color: var(--danger); color: var(--danger); }
+
+    /* ── LOGIN GATE ── */
+    #login-gate {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 200;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+    #login-gate.visible { display: flex; }
+    .login-card {
+      width: 100%;
+      max-width: 360px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+    }
+    .login-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .login-card p { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+    .logo-centered { display: flex; justify-content: center; margin-bottom: 32px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .form-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .btn-full {
+      width: 100%;
+      padding: 13px 20px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font);
+      transition: background 0.2s;
+      margin-top: 4px;
+    }
+    .btn-full:hover { background: var(--accent-hover); }
+    .btn-full:disabled { opacity: 0.5; pointer-events: none; }
+    .form-error { color: var(--danger); font-size: 13px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="toast"></div>
+
+  <!-- Login gate -->
+  <div id="login-gate" class="visible">
+    <div class="logo-centered">
+      <div class="logo">
+        <div class="logo-icon">🏠</div>
+        ImmoStage 3D
+      </div>
+    </div>
+    <div class="login-card">
+      <h2>Anmelden</h2>
+      <p>Melde dich an, um deine Touren zu verwalten.</p>
+      <div class="form-group">
+        <label class="form-label" for="lg-email">E-Mail</label>
+        <input id="lg-email" class="form-input" type="email" placeholder="makler@beispiel.de" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="lg-password">Passwort</label>
+        <input id="lg-password" class="form-input" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <div id="lg-error" class="form-error" style="display:none"></div>
+      <button id="btn-lg-login" class="btn-full">Anmelden</button>
+    </div>
+  </div>
+
+  <!-- Page header -->
+  <header class="page-header">
+    <div class="logo">
+      <div class="logo-icon">🏠</div>
+      Meine Touren
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon" id="btn-new-scan">+ Neuer Scan</button>
+      <button class="btn-icon" id="btn-logout">Abmelden</button>
+    </div>
+  </header>
+
+  <!-- Main body -->
+  <main class="page-body">
+    <!-- Loading state -->
+    <div id="state-loading" class="state-container">
+      <div class="spinner"></div>
+      <p class="state-sub">Touren werden geladen…</p>
+    </div>
+
+    <!-- Empty state -->
+    <div id="state-empty" class="state-container" style="display:none">
+      <div class="state-icon">🏗️</div>
+      <div class="state-title">Noch keine Touren</div>
+      <p class="state-sub">Erstelle deinen ersten 3D-Scan mit der Kamera-App.</p>
+      <button class="btn-sm btn-sm-primary" onclick="window.location.href='/'" style="margin: 0 auto;padding:12px 24px;font-size:14px">
+        Zur Aufnahme-App
+      </button>
+    </div>
+
+    <!-- Error state -->
+    <div id="state-error" class="state-container" style="display:none">
+      <div class="state-icon">⚠️</div>
+      <div class="state-title">Fehler beim Laden</div>
+      <p class="state-sub" id="error-msg">Die Touren konnten nicht geladen werden.</p>
+      <button class="btn-sm btn-sm-primary" onclick="loadTours()" style="margin:0 auto;padding:12px 24px;font-size:14px">
+        Nochmal versuchen
+      </button>
+    </div>
+
+    <!-- Tours grid -->
+    <div id="tours-grid" class="tours-grid" style="display:none"></div>
+  </main>
+</div>
+
+<script type="module">
+import { supabase } from './supabase-client.js'
+
+// ══════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = `show ${type}`
+  clearTimeout(el._t)
+  el._t = setTimeout(() => { el.className = '' }, 3000)
+}
+
+function setState(id) {
+  ;['loading', 'empty', 'error'].forEach(s => {
+    document.getElementById(`state-${s}`).style.display = s === id ? 'block' : 'none'
+  })
+  document.getElementById('tours-grid').style.display = id === 'tours' ? 'flex' : 'none'
+}
+
+function formatDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function statusLabel(status) {
+  const map = {
+    complete: 'Fertig',
+    fast_ready: 'Vorschau',
+    processing: 'In Bearbeitung',
+    uploading: 'Hochladen',
+    staging: 'KI-Staging',
+    staged: 'Staging fertig',
+    depth: 'Tiefenkarte',
+    failed: 'Fehler',
+    pending: 'Ausstehend',
+  }
+  return map[status] || status
+}
+
+function statusClass(status) {
+  const classes = {
+    complete: 'status-complete',
+    fast_ready: 'status-fast_ready',
+    processing: 'status-processing',
+    uploading: 'status-uploading',
+    staging: 'status-processing',
+    staged: 'status-processing',
+    depth: 'status-processing',
+    failed: 'status-failed',
+  }
+  return classes[status] || 'status-pending'
+}
+
+function getTourUrl(tourId) {
+  return `${window.location.origin}/tour/${tourId}`
+}
+
+// ══════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════
+let currentUser = null
+
+async function initAuth() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) {
+    currentUser = session.user
+    document.getElementById('login-gate').classList.remove('visible')
+    loadTours()
+  }
+}
+
+async function login() {
+  const email = document.getElementById('lg-email').value.trim()
+  const password = document.getElementById('lg-password').value
+  const errEl = document.getElementById('lg-error')
+  const btn = document.getElementById('btn-lg-login')
+
+  if (!email || !password) {
+    errEl.textContent = 'Bitte E-Mail und Passwort eingeben.'
+    errEl.style.display = 'block'
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = 'Anmelden…'
+  errEl.style.display = 'none'
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  btn.disabled = false
+  btn.textContent = 'Anmelden'
+
+  if (error) {
+    errEl.textContent = error.message
+    errEl.style.display = 'block'
+    return
+  }
+
+  currentUser = data.user
+  document.getElementById('login-gate').classList.remove('visible')
+  loadTours()
+}
+
+// ══════════════════════════════════════
+// LOAD TOURS
+// ══════════════════════════════════════
+window.loadTours = async function loadTours() {
+  setState('loading')
+
+  const { data: tours, error } = await supabase
+    .from('tours')
+    .select('*, tour_rooms(id, name, status, mode, panorama_url, splat_url, created_at)')
+    .eq('agent_id', currentUser.id)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    document.getElementById('error-msg').textContent = error.message
+    setState('error')
+    return
+  }
+
+  if (!tours || tours.length === 0) {
+    setState('empty')
+    return
+  }
+
+  renderTours(tours)
+  setState('tours')
+
+  // Subscribe to realtime updates for any in-progress rooms
+  tours.forEach(tour => {
+    ;(tour.tour_rooms || []).forEach(room => {
+      if (!['complete', 'failed'].includes(room.status)) {
+        subscribeToRoom(room.id, tour.id)
+      }
+    })
+  })
+}
+
+// ══════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════
+function renderTours(tours) {
+  const grid = document.getElementById('tours-grid')
+  grid.innerHTML = ''
+  tours.forEach(tour => grid.appendChild(buildTourCard(tour)))
+}
+
+function buildTourCard(tour) {
+  const rooms = tour.tour_rooms || []
+  const completeRooms = rooms.filter(r => r.status === 'complete' || r.status === 'fast_ready')
+  const totalRooms = rooms.length
+  const viewCount = tour.view_count || 0
+  const tourUrl = getTourUrl(tour.id)
+
+  // Find a panorama for thumbnail
+  const thumbRoom = completeRooms.find(r => r.panorama_url)
+
+  const card = document.createElement('div')
+  card.className = 'tour-card'
+  card.id = `tour-card-${tour.id}`
+
+  const thumb = thumbRoom?.panorama_url
+    ? `<img class="tour-thumbnail" src="${thumbRoom.panorama_url}" alt="${tour.title}" />`
+    : `<div class="tour-thumbnail-placeholder">🏠</div>`
+
+  card.innerHTML = `
+    <div class="tour-card-header">
+      ${thumb}
+      <div class="tour-meta">
+        <div class="tour-title">${tour.title || 'Unbenannte Tour'}</div>
+        <div class="tour-address">${tour.address || ''}</div>
+        <div class="tour-stats">
+          <div class="stat-chip">🏠 <strong>${totalRooms}</strong> Räume</div>
+          <div class="stat-chip">✅ <strong>${completeRooms.length}</strong> fertig</div>
+          <div class="stat-chip">👁️ <strong>${viewCount}</strong> Aufrufe</div>
+          <div class="stat-chip">📅 ${formatDate(tour.created_at)}</div>
+        </div>
+      </div>
+    </div>
+
+    ${rooms.length > 0 ? `
+    <div class="tour-rooms">
+      <div class="rooms-label">Räume</div>
+      ${rooms.map(r => `
+        <div class="room-row">
+          <span class="room-row-name">${r.name}</span>
+          <span class="status-badge ${statusClass(r.status)}">${statusLabel(r.status)}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    <div class="tour-actions">
+      <button class="btn-sm btn-sm-primary" data-action="view-tour" data-tour-id="${tour.id}">
+        Tour ansehen
+      </button>
+      <button class="btn-sm btn-sm-secondary" data-action="add-room" data-tour-id="${tour.id}">
+        + Raum hinzufügen
+      </button>
+    </div>
+
+    <div class="tour-link-row">
+      <span class="tour-link-url">${tourUrl}</span>
+      <button class="btn-sm btn-sm-ghost" data-action="copy-link" data-tour-url="${tourUrl}">
+        Kopieren
+      </button>
+    </div>
+  `
+
+  // Event delegation on card
+  card.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-action]')
+    if (!btn) return
+
+    const action = btn.dataset.action
+    const tourId = btn.dataset.tourId
+    const tourUrlVal = btn.dataset.tourUrl
+
+    if (action === 'view-tour') {
+      window.open(`/tour/${tourId}`, '_blank')
+    } else if (action === 'add-room') {
+      // Navigate to capture app with pre-selected tour
+      window.location.href = `/?tour=${tourId}`
+    } else if (action === 'copy-link') {
+      try {
+        await navigator.clipboard.writeText(tourUrlVal)
+        toast('Link kopiert!', 'success')
+      } catch (_) {
+        // Fallback
+        const ta = document.createElement('textarea')
+        ta.value = tourUrlVal
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        ta.remove()
+        toast('Link kopiert!', 'success')
+      }
+    }
+  })
+
+  return card
+}
+
+// ══════════════════════════════════════
+// REALTIME
+// ══════════════════════════════════════
+function subscribeToRoom(roomId, tourId) {
+  supabase.channel(`dashboard-room-${roomId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'tour_rooms',
+      filter: `id=eq.${roomId}`,
+    }, async () => {
+      // Reload the tour to refresh its card
+      const { data: tour } = await supabase
+        .from('tours')
+        .select('*, tour_rooms(id, name, status, mode, panorama_url, splat_url, created_at)')
+        .eq('id', tourId)
+        .single()
+
+      if (tour) {
+        const existing = document.getElementById(`tour-card-${tourId}`)
+        if (existing) {
+          const newCard = buildTourCard(tour)
+          existing.replaceWith(newCard)
+        }
+      }
+    })
+    .subscribe()
+}
+
+// ══════════════════════════════════════
+// EVENT LISTENERS
+// ══════════════════════════════════════
+document.getElementById('btn-lg-login').addEventListener('click', login)
+document.getElementById('lg-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') login()
+})
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await supabase.auth.signOut()
+  currentUser = null
+  document.getElementById('tours-grid').style.display = 'none'
+  setState('loading')
+  document.getElementById('login-gate').classList.add('visible')
+})
+
+document.getElementById('btn-new-scan').addEventListener('click', () => {
+  window.location.href = '/'
+})
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+await initAuth()
+</script>
+</body>
+</html>

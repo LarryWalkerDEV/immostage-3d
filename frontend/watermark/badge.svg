@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none">
+  <!-- House / building icon -->
+  <path
+    d="M8 1.5L1.5 6v8.5h4V10h5v4.5h4V6L8 1.5z"
+    fill="rgba(255,255,255,0.85)"
+  />
+</svg>

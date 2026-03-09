@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>ImmoStage 3D – Icon Generator</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 32px;
+    }
+    h1 { margin: 0; font-size: 1.4rem; }
+    p { margin: 0; color: #aaa; font-size: 0.9rem; text-align: center; }
+    canvas { border-radius: 16px; box-shadow: 0 4px 24px rgba(99,102,241,0.4); }
+    .controls { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    button {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover { background: #4f46e5; }
+    .pair { display: flex; gap: 32px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
+    label { font-size: 0.8rem; color: #aaa; text-align: center; display: block; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>ImmoStage 3D – PWA Icon Generator</h1>
+  <p>Klicken Sie auf "Icons herunterladen" um beide PNG-Dateien zu speichern.<br>
+     Legen Sie die Dateien in <code>frontend/icons/</code> ab.</p>
+
+  <div class="pair">
+    <div>
+      <canvas id="canvas192" width="192" height="192"></canvas>
+      <label>icon-192.png</label>
+    </div>
+    <div>
+      <canvas id="canvas512" width="512" height="512"></canvas>
+      <label>icon-512.png</label>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="downloadAll()">Icons herunterladen</button>
+  </div>
+
+  <script>
+    function drawIcon(canvas) {
+      const size = canvas.width
+      const ctx = canvas.getContext('2d')
+      const scale = size / 192
+
+      // Background
+      const grad = ctx.createLinearGradient(0, 0, size, size)
+      grad.addColorStop(0, '#4f46e5')
+      grad.addColorStop(1, '#6366f1')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.roundRect(0, 0, size, size, 32 * scale)
+      ctx.fill()
+
+      // House silhouette
+      ctx.fillStyle = 'rgba(255,255,255,0.95)'
+      const cx = size / 2
+      const cy = size / 2
+
+      // Roof (triangle)
+      const roofW = 90 * scale
+      const roofH = 50 * scale
+      const roofTop = cy - 52 * scale
+      ctx.beginPath()
+      ctx.moveTo(cx, roofTop)
+      ctx.lineTo(cx - roofW / 2, roofTop + roofH)
+      ctx.lineTo(cx + roofW / 2, roofTop + roofH)
+      ctx.closePath()
+      ctx.fill()
+
+      // Body (rectangle)
+      const bodyW = 70 * scale
+      const bodyH = 48 * scale
+      const bodyTop = roofTop + roofH - 2 * scale
+      ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyH)
+
+      // Door
+      ctx.fillStyle = grad
+      const doorW = 18 * scale
+      const doorH = 26 * scale
+      ctx.beginPath()
+      ctx.roundRect(cx - doorW / 2, bodyTop + bodyH - doorH, doorW, doorH, 4 * scale)
+      ctx.fill()
+
+      // "3D" text
+      ctx.fillStyle = 'rgba(255,255,255,0.95)'
+      ctx.font = `bold ${Math.round(28 * scale)}px system-ui, sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('3D', cx, cy + 52 * scale)
+    }
+
+    const c192 = document.getElementById('canvas192')
+    const c512 = document.getElementById('canvas512')
+    drawIcon(c192)
+    drawIcon(c512)
+
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a')
+      link.download = filename
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    }
+
+    function downloadAll() {
+      downloadCanvas(c192, 'icon-192.png')
+      setTimeout(() => downloadCanvas(c512, 'icon-512.png'), 300)
+    }
+  </script>
+</body>
+</html>

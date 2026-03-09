@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>ImmoStage 3D – Tour</title>
+  <link rel="manifest" href="/manifest.json" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #6366f1;
+      --accent-dim: rgba(99,102,241,0.15);
+      --text: #f0f0f0;
+      --muted: #888;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --radius: 12px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow: hidden;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    .screen.active { transform: translateX(0); }
+    .screen.exit-left { transform: translateX(-30%); }
+
+    /* ── LOADING ── */
+    #screen-loading {
+      justify-content: center;
+      align-items: center;
+      background: var(--bg);
+      transform: translateX(0);
+    }
+    .loading-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: var(--muted); font-size: 14px; }
+
+    /* ── ERROR ── */
+    #screen-error {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 40px 24px;
+      background: var(--bg);
+    }
+    .error-icon { font-size: 56px; margin-bottom: 20px; }
+    #screen-error h2 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+    #screen-error p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+    /* ── FLOOR PLAN SCREEN ── */
+    #screen-floorplan { background: var(--bg); }
+    .tour-header {
+      padding: 52px 20px 16px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tour-title { font-size: 20px; font-weight: 700; }
+    .tour-address { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    #floorplan-view {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    #floorplan-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    #hotspot-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .hotspot-btn {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      pointer-events: all;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .hotspot-pulse-ring {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: rgba(99,102,241,0.25);
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 2s ease-out infinite;
+      position: relative;
+    }
+    .hotspot-pulse-ring::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2px solid rgba(99,102,241,0.3);
+      animation: pulse-out 2s ease-out infinite;
+    }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+    @keyframes pulse-out { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
+    .hotspot-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .hotspot-label {
+      background: rgba(0,0,0,0.7);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+
+    /* Room list fallback */
+    #screen-rooms { background: var(--bg); overflow-y: auto; }
+    #screen-rooms .tour-header { border-bottom: 1px solid var(--border); }
+    .rooms-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .room-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .room-card:hover { border-color: var(--accent); }
+    .room-thumb {
+      width: 72px;
+      height: 54px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .room-thumb-placeholder {
+      width: 72px;
+      height: 54px;
+      border-radius: 8px;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .room-info { flex: 1; }
+    .room-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .room-badge {
+      display: inline-block;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .room-arrow { color: var(--muted); font-size: 18px; }
+
+    /* ── VIEWER SCREEN ── */
+    #screen-viewer { background: #000; }
+    #viewer-container { position: absolute; inset: 0; }
+    #viewer-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 52px 16px 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.75), transparent);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 10;
+    }
+    .btn-back-viewer {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      width: 38px; height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 18px; cursor: pointer;
+      backdrop-filter: blur(8px);
+    }
+    #viewer-room-label {
+      flex: 1;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .viewer-tag {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 4px 12px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.6);
+      backdrop-filter: blur(8px);
+    }
+    #viewer-hint {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+      z-index: 5;
+      animation: fadeOut 3s ease-out 4s forwards;
+      pointer-events: none;
+    }
+    @keyframes fadeOut { to { opacity: 0; } }
+
+    /* Joystick container */
+    #joystick-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 8;
+    }
+    .joystick-zone {
+      position: absolute;
+      bottom: 40px;
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: all;
+    }
+    #joystick-left { left: 24px; }
+    #joystick-right { right: 24px; }
+    .joystick-thumb {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      border: 2px solid rgba(255,255,255,0.4);
+      position: absolute;
+      transition: none;
+    }
+
+    /* Watermark */
+    #immostage-badge {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      padding: 6px 12px;
+      z-index: 100;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    #immostage-badge a {
+      display: flex; align-items: center; gap: 6px;
+      text-decoration: none;
+      color: rgba(255,255,255,0.7);
+      font-size: 11px;
+      font-family: var(--font);
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 1000;
+      transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { border-color: var(--danger); color: var(--danger); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="toast"></div>
+
+  <!-- Loading -->
+  <div id="screen-loading" class="screen active">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Tour wird geladen…</p>
+  </div>
+
+  <!-- Error -->
+  <div id="screen-error" class="screen">
+    <div class="error-icon">🏚️</div>
+    <h2>Tour nicht gefunden</h2>
+    <p id="error-detail">Diese Tour existiert nicht oder ist nicht öffentlich zugänglich.</p>
+  </div>
+
+  <!-- Floor plan view -->
+  <div id="screen-floorplan" class="screen">
+    <div class="tour-header">
+      <div class="tour-title" id="fp-tour-title">Immobilien-Tour</div>
+      <div class="tour-address" id="fp-tour-address"></div>
+    </div>
+    <div id="floorplan-view">
+      <img id="floorplan-image" src="" alt="Grundriss" />
+      <div id="hotspot-layer"></div>
+    </div>
+  </div>
+
+  <!-- Room list (no floor plan) -->
+  <div id="screen-rooms" class="screen">
+    <div class="tour-header">
+      <div class="tour-title" id="rooms-tour-title">Immobilien-Tour</div>
+      <div class="tour-address" id="rooms-tour-address"></div>
+    </div>
+    <div class="rooms-list" id="rooms-list"></div>
+  </div>
+
+  <!-- Sphere/Splat viewer -->
+  <div id="screen-viewer" class="screen">
+    <div id="viewer-container"></div>
+    <div id="viewer-overlay">
+      <button class="btn-back-viewer" id="btn-back-to-tour">←</button>
+      <span id="viewer-room-label">Raum</span>
+      <span class="viewer-tag" id="viewer-quality">Panorama</span>
+    </div>
+    <div id="viewer-hint">📱 Schwenken oder ziehen zum Navigieren</div>
+    <div id="joystick-layer" style="display:none">
+      <div class="joystick-zone" id="joystick-left">
+        <div class="joystick-thumb" id="thumb-left"></div>
+      </div>
+      <div class="joystick-zone" id="joystick-right">
+        <div class="joystick-thumb" id="thumb-right"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { supabase } from '/supabase-client.js'
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+const State = {
+  tour: null,
+  rooms: [],
+  currentRoom: null,
+  threeRenderer: null,
+  threeRAF: null,
+  gyroEnabled: false,
+  prevScreen: 'floorplan',
+}
+
+// ══════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = `show ${type}`
+  clearTimeout(el._t)
+  el._t = setTimeout(() => { el.className = '' }, 3000)
+}
+
+function showScreen(id) {
+  const prev = document.querySelector('.screen.active')
+  const next = document.getElementById(`screen-${id}`)
+  if (!next || prev === next) return
+  if (prev) {
+    prev.classList.remove('active')
+    prev.classList.add('exit-left')
+    setTimeout(() => prev.classList.remove('exit-left'), 400)
+  }
+  next.classList.add('active')
+}
+
+function getTourId() {
+  // Support /tour/{id} path or ?tour={id} query
+  const path = window.location.pathname
+  const match = path.match(/\/tour\/([^/]+)/)
+  if (match) return match[1]
+  const params = new URLSearchParams(window.location.search)
+  return params.get('tour') || params.get('id')
+}
+
+// ══════════════════════════════════════
+// LOAD TOUR
+// ══════════════════════════════════════
+async function loadTour() {
+  const tourId = getTourId()
+  if (!tourId) {
+    document.getElementById('error-detail').textContent = 'Keine Tour-ID in der URL gefunden.'
+    showScreen('error')
+    return
+  }
+
+  const { data: tour, error } = await supabase
+    .from('tours')
+    .select('*, tour_rooms(id, name, status, mode, style, panorama_url, splat_url, hotspot_x, hotspot_y, created_at)')
+    .eq('id', tourId)
+    .single()
+
+  if (error || !tour) {
+    document.getElementById('error-detail').textContent = 'Tour nicht gefunden (ID: ' + tourId + ')'
+    showScreen('error')
+    return
+  }
+
+  State.tour = tour
+  State.rooms = (tour.tour_rooms || []).filter(r =>
+    r.status === 'complete' || r.status === 'fast_ready'
+  )
+
+  // Track view count
+  try {
+    await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tourId, event: 'view' }),
+    })
+  } catch (_) {}
+
+  // Watermark
+  if (tour.watermark !== false) showWatermark()
+
+  // Render
+  if (tour.floorplan_url && State.rooms.some(r => r.hotspot_x != null)) {
+    renderFloorPlan(tour)
+    showScreen('floorplan')
+    State.prevScreen = 'floorplan'
+  } else {
+    renderRoomList(tour)
+    showScreen('rooms')
+    State.prevScreen = 'rooms'
+  }
+}
+
+// ══════════════════════════════════════
+// FLOOR PLAN
+// ══════════════════════════════════════
+function renderFloorPlan(tour) {
+  document.getElementById('fp-tour-title').textContent = tour.title || 'Immobilien-Tour'
+  document.getElementById('fp-tour-address').textContent = tour.address || ''
+
+  const img = document.getElementById('floorplan-image')
+  img.src = tour.floorplan_url
+  img.onload = () => placeHotspots(tour)
+}
+
+function placeHotspots(tour) {
+  const layer = document.getElementById('hotspot-layer')
+  layer.innerHTML = ''
+  const view = document.getElementById('floorplan-view')
+  const imgEl = document.getElementById('floorplan-image')
+
+  // Get rendered image dimensions within the container
+  const imgRect = imgEl.getBoundingClientRect()
+  const viewRect = view.getBoundingClientRect()
+  const offsetX = imgRect.left - viewRect.left
+  const offsetY = imgRect.top - viewRect.top
+
+  State.rooms.forEach(room => {
+    if (room.hotspot_x == null || room.hotspot_y == null) return
+
+    const btn = document.createElement('button')
+    btn.className = 'hotspot-btn'
+    btn.style.left = `${offsetX + room.hotspot_x * imgRect.width}px`
+    btn.style.top = `${offsetY + room.hotspot_y * imgRect.height}px`
+    btn.innerHTML = `
+      <div class="hotspot-pulse-ring">
+        <div class="hotspot-dot"></div>
+      </div>
+      <span class="hotspot-label">${room.name}</span>
+    `
+    btn.addEventListener('click', () => enterRoom(room))
+    layer.appendChild(btn)
+  })
+}
+
+// ══════════════════════════════════════
+// ROOM LIST
+// ══════════════════════════════════════
+function renderRoomList(tour) {
+  document.getElementById('rooms-tour-title').textContent = tour.title || 'Immobilien-Tour'
+  document.getElementById('rooms-tour-address').textContent = tour.address || ''
+
+  const list = document.getElementById('rooms-list')
+  list.innerHTML = ''
+
+  if (State.rooms.length === 0) {
+    list.innerHTML = '<p style="color:var(--muted);font-size:14px;text-align:center;padding:40px 0">Keine fertigen Räume verfügbar.</p>'
+    return
+  }
+
+  State.rooms.forEach(room => {
+    const card = document.createElement('div')
+    card.className = 'room-card'
+    const thumb = room.panorama_url
+      ? `<img class="room-thumb" src="${room.panorama_url}" alt="${room.name}" />`
+      : `<div class="room-thumb-placeholder">🏠</div>`
+
+    const modeLabel = room.mode === 'staged' ? 'KI-Staging' : 'Real'
+    card.innerHTML = `
+      ${thumb}
+      <div class="room-info">
+        <div class="room-name">${room.name}</div>
+        <span class="room-badge">${modeLabel}</span>
+      </div>
+      <span class="room-arrow">›</span>
+    `
+    card.addEventListener('click', () => enterRoom(room))
+    list.appendChild(card)
+  })
+}
+
+// ══════════════════════════════════════
+// ENTER ROOM
+// ══════════════════════════════════════
+function enterRoom(room) {
+  State.currentRoom = room
+  document.getElementById('viewer-room-label').textContent = room.name
+
+  if (room.splat_url) {
+    document.getElementById('viewer-quality').textContent = '3D Gaussian Splat'
+    loadSplatViewer(room.splat_url)
+  } else if (room.panorama_url) {
+    document.getElementById('viewer-quality').textContent = '360° Panorama'
+    loadSphereViewer(room.panorama_url, null)
+  } else {
+    toast('Keine Ansicht verfügbar', 'error')
+    return
+  }
+  showScreen('viewer')
+}
+
+// ══════════════════════════════════════
+// SPHERE VIEWER (Three.js)
+// ══════════════════════════════════════
+function loadSphereViewer(panoramaUrl, depthUrl) {
+  const container = document.getElementById('viewer-container')
+  container.innerHTML = ''
+  if (State.threeRAF) cancelAnimationFrame(State.threeRAF)
+  if (State.threeRenderer) { State.threeRenderer.dispose(); State.threeRenderer = null }
+
+  const w = window.innerWidth
+  const h = window.innerHeight
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer.setSize(w, h)
+  renderer.setPixelRatio(window.devicePixelRatio)
+  container.appendChild(renderer.domElement)
+  State.threeRenderer = renderer
+
+  const scene = new THREE.Scene()
+  const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000)
+  camera.position.set(0, 0, 0.1)
+
+  const geo = new THREE.SphereGeometry(50, 64, 32)
+  geo.scale(-1, 1, 1)
+
+  const mat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a })
+  const sphere = new THREE.Mesh(geo, mat)
+  scene.add(sphere)
+
+  const loader = new THREE.TextureLoader()
+  loader.load(panoramaUrl, tex => {
+    mat.map = tex
+    mat.needsUpdate = true
+  })
+
+  let lon = 0, lat = 0
+  let isDragging = false, lastX = 0, lastY = 0
+
+  // Mouse
+  renderer.domElement.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY })
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return
+    lon -= (e.clientX - lastX) * 0.2
+    lat = Math.max(-85, Math.min(85, lat + (e.clientY - lastY) * 0.1))
+    lastX = e.clientX; lastY = e.clientY
+  })
+  window.addEventListener('mouseup', () => isDragging = false)
+
+  // Touch
+  renderer.domElement.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { lastX = e.touches[0].clientX; lastY = e.touches[0].clientY }
+  }, { passive: true })
+  renderer.domElement.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && !State.gyroEnabled) {
+      lon -= (e.touches[0].clientX - lastX) * 0.2
+      lat = Math.max(-85, Math.min(85, lat + (e.touches[0].clientY - lastY) * 0.1))
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY
+    }
+  }, { passive: true })
+
+  // Gyro
+  if (State.gyroEnabled) {
+    window.addEventListener('deviceorientation', e => {
+      if (!isDragging) {
+        lon = e.alpha || 0
+        lat = Math.max(-85, Math.min(85, (e.beta || 0) - 90))
+      }
+    })
+  }
+
+  // Right joystick for look
+  setupJoystick('joystick-right', 'thumb-right', (dx, dy) => {
+    lon -= dx * 0.8
+    lat = Math.max(-85, Math.min(85, lat + dy * 0.5))
+  })
+
+  function animate() {
+    State.threeRAF = requestAnimationFrame(animate)
+    const phi = THREE.MathUtils.degToRad(90 - lat)
+    const theta = THREE.MathUtils.degToRad(lon)
+    camera.lookAt(
+      Math.sin(phi) * Math.cos(theta),
+      Math.cos(phi),
+      Math.sin(phi) * Math.sin(theta)
+    )
+    renderer.render(scene, camera)
+  }
+  animate()
+
+  window.addEventListener('resize', () => {
+    const w2 = window.innerWidth, h2 = window.innerHeight
+    renderer.setSize(w2, h2)
+    camera.aspect = w2 / h2
+    camera.updateProjectionMatrix()
+  })
+}
+
+// ══════════════════════════════════════
+// JOYSTICK
+// ══════════════════════════════════════
+function setupJoystick(zoneId, thumbId, onMove) {
+  const zone = document.getElementById(zoneId)
+  const thumb = document.getElementById(thumbId)
+  if (!zone || !thumb) return
+
+  const radius = 30
+  let active = false, startX = 0, startY = 0
+
+  zone.addEventListener('touchstart', e => {
+    e.preventDefault()
+    active = true
+    const t = e.touches[0]
+    const rect = zone.getBoundingClientRect()
+    startX = rect.left + rect.width / 2
+    startY = rect.top + rect.height / 2
+  }, { passive: false })
+
+  zone.addEventListener('touchmove', e => {
+    if (!active) return
+    e.preventDefault()
+    const t = e.touches[0]
+    let dx = t.clientX - startX
+    let dy = t.clientY - startY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist > radius) { dx = dx / dist * radius; dy = dy / dist * radius }
+    thumb.style.transform = `translate(${dx}px, ${dy}px)`
+    onMove(dx / radius, dy / radius)
+  }, { passive: false })
+
+  zone.addEventListener('touchend', () => {
+    active = false
+    thumb.style.transform = 'translate(0,0)'
+    onMove(0, 0)
+  })
+}
+
+// ══════════════════════════════════════
+// SPLAT VIEWER
+// ══════════════════════════════════════
+async function loadSplatViewer(splatUrl) {
+  const container = document.getElementById('viewer-container')
+  container.innerHTML = ''
+  if (State.threeRAF) cancelAnimationFrame(State.threeRAF)
+  if (State.threeRenderer) { State.threeRenderer.dispose(); State.threeRenderer = null }
+
+  document.getElementById('joystick-layer').style.display = 'block'
+
+  try {
+    const { GaussianSplatViewer } = await import('https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.2/build/gaussian-splats-3d.module.min.js')
+    const viewer = new GaussianSplatViewer({ rootElement: container, selfDrivenMode: true })
+    await viewer.loadFile(splatUrl)
+    viewer.start()
+
+    // Left joystick: forward/back/strafe via viewer camera
+    setupJoystick('joystick-left', 'thumb-left', (dx, dy) => {
+      // Splat viewer camera movement — uses its own control system
+      // We can't directly manipulate it easily without its API; hint to user
+    })
+  } catch (e) {
+    toast('3D-Viewer konnte nicht geladen werden', 'error')
+    console.error('Splat viewer error:', e)
+    // Fallback to panorama if available
+    if (State.currentRoom?.panorama_url) {
+      document.getElementById('viewer-quality').textContent = '360° Panorama'
+      loadSphereViewer(State.currentRoom.panorama_url, null)
+    }
+  }
+}
+
+// ══════════════════════════════════════
+// WATERMARK
+// ══════════════════════════════════════
+function showWatermark() {
+  const badge = document.createElement('div')
+  badge.id = 'immostage-badge'
+  badge.innerHTML = `<a href="https://immostage.ai?ref=tour" target="_blank">
+    <img src="/watermark/badge.svg" width="16" height="16" alt="" onerror="this.style.display='none'" />
+    Powered by ImmoStage.ai
+  </a>`
+  document.body.appendChild(badge)
+}
+
+// ══════════════════════════════════════
+// GYRO INIT
+// ══════════════════════════════════════
+async function tryEnableGyro() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const res = await DeviceOrientationEvent.requestPermission()
+      State.gyroEnabled = res === 'granted'
+    } catch (_) {}
+  } else if (typeof DeviceOrientationEvent !== 'undefined') {
+    State.gyroEnabled = true
+  }
+}
+
+// ══════════════════════════════════════
+// BACK NAVIGATION
+// ══════════════════════════════════════
+document.getElementById('btn-back-to-tour').addEventListener('click', () => {
+  if (State.threeRAF) cancelAnimationFrame(State.threeRAF)
+  document.getElementById('joystick-layer').style.display = 'none'
+  showScreen(State.prevScreen)
+  // Re-place hotspots after layout settles
+  if (State.prevScreen === 'floorplan' && State.tour) {
+    setTimeout(() => placeHotspots(State.tour), 100)
+  }
+})
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+await tryEnableGyro()
+await loadTour()
+</script>
+</body>
+</html>

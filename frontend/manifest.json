@@ -1,0 +1,14 @@
+{
+  "name": "ImmoStage 3D",
+  "short_name": "ImmoStage",
+  "description": "3D Virtual Tours für Immobilienmakler",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#6366f1",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

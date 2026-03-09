@@ -1,0 +1,28 @@
+# RunPod serverless SDK
+runpod==1.6.2
+
+# Supabase Python client (uploads output files, updates room status)
+supabase==2.3.0
+
+# HTTP client for calling back to Supabase / internal APIs
+httpx>=0.27.0
+requests
+
+# Image processing
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# OpenCV for panorama stitching and image operations
+opencv-python-headless>=4.9.0
+
+# fal.ai client for ControlNet depth estimation
+fal-client>=0.10.0
+
+# PLY file parsing for gaussian splat conversion
+plyfile
+
+# 360-degree image utilities
+py360convert
+
+# Progress bars (for debugging/logging long operations)
+tqdm
