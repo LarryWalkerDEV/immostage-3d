@@ -116,7 +116,10 @@ def update_room(sb, room_id, **kwargs):
     """Update room record fields. Skips None values."""
     payload = {k: v for k, v in kwargs.items() if v is not None}
     if payload:
-        sb.table('tour_rooms').update(payload).eq('id', room_id).execute()
+        try:
+            sb.table('tour_rooms').update(payload).eq('id', room_id).execute()
+        except Exception as e:
+            log.warning(f"Failed to update room {room_id}: {e}")
 
 
 def download_photos(sb, folder, work_dir):
